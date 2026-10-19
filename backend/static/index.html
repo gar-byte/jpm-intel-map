@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>jpm-intel-map Prototype</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>html,body,#map{height:100%;margin:0;padding:0} .info{position:absolute;top:10px;left:10px;z-index:1000;background:white;padding:8px;border-radius:4px}</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="info">JPM Companies, LLC — jpm-intel-map Prototype</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([20,0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+let markers = {};
+
+function addEvent(e){
+  if(e.latitude && e.longitude){
+    const key = e.id;
+    if(markers[key]) return;
+    const m = L.marker([e.latitude, e.longitude]).addTo(map);
+    m.bindPopup(`<b>${e.title}</b><br/>${e.event_type}<br/>${e.source}<br/>${e.timestamp}`);
+    markers[key] = m;
+  }
+}
+
+async function loadEvents(){
+  const r = await fetch('/events?limit=200');
+  const j = await r.json();
+  j.events.forEach(addEvent);
+}
+
+loadEvents();
+
+const ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws');
+ws.onmessage = (ev)=>{
+  try{
+    const msg = JSON.parse(ev.data);
+    if(msg.type === 'event') addEvent(msg.event);
+  }catch(e){
+    console.log('ws', ev.data);
+  }
+}
+</script>
+</body>
+</html>
